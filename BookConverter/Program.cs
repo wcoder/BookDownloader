@@ -1,40 +1,62 @@
 ﻿using System;
 using System.Linq;
 using System.IO;
-using ImageMagick;
 using System.Text.RegularExpressions;
+using PdfSharpCore.Pdf;
+using PdfSharpCore.Drawing;
+using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
+using BookConverter.Custom;
 
 namespace BookConverter
 {
-    class Program
+	class Program
     {
-        static void Main(string[] args)
+		const string BookId = "31991883";
+
+		static void Main(string[] args)
         {
-            var path = @"D:\Examples\BookDownloader\BookDownloader\bin\Debug\netcoreapp2.0\book_21556237";
+            var path = $@"D:\Examples\BookDownloader\BookDownloader\bin\Debug\netcoreapp2.0\book_{BookId}";
             var outputPath = Path.Combine(path, "book.pdf");
 
-            Console.WriteLine("Started");
+			WriteLog("Started");
             
-            var files = new DirectoryInfo(path).GetFiles("page_*").OrderBy(f => {
-                var pageIndex = new Regex(@"(page_|\.|gif|jpg)", RegexOptions.Multiline).Replace(f.Name, "");
-                return int.Parse(pageIndex);
-            });
+            var files = new DirectoryInfo(path).GetFiles("page_*").OrderBy(file => GetIndexFromFileName(file.Name));
 
-            Console.WriteLine($"Found pages: {files.Count()}");
-            Console.WriteLine($"Converting...");
+            WriteLog($"Found pages: {files.Count()}");
+            WriteLog($"Converting...");
 
-            using (var collection = new MagickImageCollection())
-            {
-                foreach (var file in files)
-                {
-                    collection.Add(new MagickImage(Path.Combine(path, file.Name)));
-                }
+			ImageSource.ImageSourceImpl = new CoreImageSource();
 
-                collection.Write(outputPath);
-            }
+			using (var doc = new PdfDocument())
+			{
+				foreach (var file in files.Take(10))
+				{
+					var imgPath = Path.Combine(path, file.Name);
+					var img = XImage.FromStream(() => new MemoryStream(File.ReadAllBytes(imgPath)));
 
-            Console.WriteLine($"Done! {outputPath}");
+					doc.Pages.Add(new PdfPage
+					{
+						Width = XUnit.FromPoint(img.PointWidth),
+						Height = XUnit.FromPoint(img.PointHeight)
+					});
+
+					XGraphics
+						.FromPdfPage(doc.Pages[doc.Pages.Count - 1])
+						.DrawImage(img, 0, 0);
+
+					WriteLog($"{file.Name} added");
+				}
+				doc.Save(outputPath);
+			}
+
+            WriteLog($"Done! {outputPath}");
             Console.ReadLine();
         }
-    }
+
+		static int GetIndexFromFileName(string fileName)
+			=> int.Parse(new Regex(@"(page_|\.|gif|jpg)", RegexOptions.Multiline).Replace(fileName, ""));
+
+		static void WriteLog(string message) => Console.WriteLine(message);
+
+	}
 }
