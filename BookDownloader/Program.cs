@@ -9,18 +9,21 @@ namespace BookDownloader
         static void Main(string[] args)
         {
             var bookId = "";
-            var userToken = ""; // SID
+            var userToken = ""; // SID from cookies
+            var resolution = "w1920"; // w1280
+
+
             var outputPath = Directory.GetCurrentDirectory();
 
             var cts = new CancellationTokenSource();
-            var downloader = new Downloader(userToken, outputPath);
+            var downloader = new Downloader(userToken, outputPath, Console.WriteLine);
 
             Console.WriteLine("Started");
             Console.WriteLine("Downloading...");
 
             try
             {
-                downloader.DownloadBookAsync(bookId, cts.Token).Wait();
+                downloader.DownloadBookAsync(bookId, resolution, cts.Token).Wait();
             }
             catch (Exception e)
             {

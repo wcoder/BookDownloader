@@ -12,18 +12,19 @@ namespace BookDownloader
 
         readonly string _userToken;
         readonly string _rootOutput;
+        readonly Action<string> _writeToLog;
         readonly HttpClient _httpClient;
 
-        public Downloader(string userToken, string rootOutput)
+        public Downloader(string userToken, string rootOutput, Action<string> writeToLog)
         {
             _userToken = userToken;
             _rootOutput = rootOutput;
+            _writeToLog = writeToLog;
 
-            _httpClient = new HttpClient();
-            _httpClient.DefaultRequestHeaders.Add("User-Agent", UserAgent);
+            _httpClient = CreateHttpClient();
         }
 
-        public async Task DownloadBookAsync(string bookId, CancellationToken ct)
+        public async Task DownloadBookAsync(string bookId, string resolution, CancellationToken ct)
         {
             var outputFolderPath = Directory.CreateDirectory(Path.Combine(_rootOutput, $"book_{bookId}")).FullName;
 
@@ -32,7 +33,9 @@ namespace BookDownloader
             while (true)
             {
                 var ext = pageIndex == 0 ? "jpg" : "gif";
-                var url = $"https://pro.litres.ru/pages/read_book_online/?file={bookId}&page={pageIndex}&rt=w1280&ft={ext}";
+                var url = $"https://pro.litres.ru/pages/read_book_online/?file={bookId}&page={pageIndex}&rt={resolution}&ft={ext}";
+
+                _writeToLog(url);
 
                 var stream = await DownloadAsync(url, ct);
 
@@ -66,28 +69,15 @@ namespace BookDownloader
         {
             using (var file = File.Create(path))
             {
-                await WriteStreamToFileAsync(stream, file);
+                await stream.CopyToAsync(file);
             }
-
         }
 
-        async Task WriteStreamToFileAsync(Stream stream, FileStream file)
+        HttpClient CreateHttpClient()
         {
-            using (var streamReader = new BinaryReader(stream))
-            {
-                int Length = 256;
-                byte[] buffer = new byte[Length];
-                int bytesRead = streamReader.Read(buffer, 0, Length);
-
-                while (bytesRead > 0)
-                {
-                    await file.WriteAsync(buffer, 0, bytesRead);
-                    bytesRead = streamReader.Read(buffer, 0, Length);
-                }
-
-                streamReader.Close();
-                file.Close();
-            }
+            var httpClient = new HttpClient();
+            httpClient.DefaultRequestHeaders.Add("User-Agent", UserAgent);
+            return httpClient;
         }
     }
 }
