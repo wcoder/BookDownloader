@@ -1,12 +1,13 @@
 ﻿using System;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace BookDownloader
 {
     class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             var bookId = "";
             var userToken = ""; // SID from cookies
@@ -23,11 +24,10 @@ namespace BookDownloader
 
             try
             {
-                downloader.DownloadBookAsync(bookId, resolution, cts.Token).Wait();
+                await downloader.DownloadBookAsync(bookId, resolution, cts.Token);
             }
             catch (Exception e)
             {
-                cts.Cancel();
                 Console.WriteLine(e);
             }
 
